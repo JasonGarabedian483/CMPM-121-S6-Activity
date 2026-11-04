@@ -1,20 +1,20 @@
-// Vite turns this import into a production-safe URL. Keep it as a file so
-// even this tiny example demonstrates a separately deployed asset.
-// @deno-types="./asset-url.d.ts"
-import tileUrl from "./assets/tile.svg?no-inline";
+// Bloons dart-thrower: step 1, a button you can click.
 
 const app = document.querySelector<HTMLElement>("#app")!;
 
 const heading = document.createElement("h1");
-heading.textContent = "D1 project";
+heading.textContent = "Bloons Dart Thrower";
 
-const image = document.createElement("img");
-image.src = tileUrl;
-image.alt = "A teal tile with a cream circle";
-image.width = 96;
-image.height = 96;
+// The main action: throw a dart at the bloon line.
+const dartButton = document.createElement("button");
+dartButton.id = "throw-dart";
+dartButton.type = "button";
+dartButton.textContent = "Throw Dart";
 
-const message = document.createElement("p");
-message.textContent = "Your project starts here.";
+let throws = 0;
+dartButton.addEventListener("click", () => {
+  throws += 1;
+  console.log(`Dart thrown! Total throws: ${throws}`);
+});
 
-app.append(heading, image, message);
+app.append(heading, dartButton);
