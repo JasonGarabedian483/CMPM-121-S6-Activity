@@ -692,6 +692,10 @@ style.textContent = `
       var(--crate-planks), var(--crate-face); }
   /* Locked upgrades stay clickable so they can explain themselves. */
   #btd-shop .btd-up.btd-locked { cursor:not-allowed; opacity:.65; }
+  /* Hire rows you can't afford: same dim look as disabled, but a click
+     shakes and flashes the shortfall instead of vanishing. */
+  #btd-shop .btd-hire.btd-broke { cursor:not-allowed; opacity:.55;
+    filter:saturate(.65) brightness(.85); }
   @keyframes btd-shake {
     0%, 100% { transform:translateX(0); }
     20% { transform:translateX(-4px); }
@@ -700,7 +704,11 @@ style.textContent = `
     80% { transform:translateX(3px); }
   }
   .btd-shake { animation:btd-shake .3s ease; }
-  .btd-monkey { position:relative; cursor:pointer; }
+  /* The row's clickable area extends below the crate face: the drop opens
+     the instant the row is hovered, so without this padding the strip
+     under the button (where its shadow makes it look clickable) belongs
+     to the dropdown's chrome and silently eats hire clicks. */
+  .btd-monkey { position:relative; cursor:pointer; padding-bottom:7px; }
   .btd-monkey:hover { z-index:40; }
   .btd-hire { display:flex; align-items:center; gap:8px; width:100%;
     padding:6px 10px; }
@@ -711,14 +719,14 @@ style.textContent = `
   .btd-hire .btd-rate { font-size:12px; opacity:.9; }
   .btd-hire .btd-cost { color:#ffd76a; }
   /* The dropdown reads as the open inside of a crate: darker planks. */
-  .btd-drop { display:none; position:absolute; top:calc(100% + 2px); left:0;
+  .btd-drop { display:none; position:absolute; top:100%; left:0;
     right:0; z-index:41; cursor:default;
     background:
       repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 2px, transparent 2px 18px),
       linear-gradient(180deg, #54381c, #3f2812);
-    border:2px solid #4a2e14; border-radius:8px; padding:8px;
+    border:2px solid #4a2e14; border-radius:8px; padding:4px 6px;
     box-shadow: inset 0 3px 10px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.5);
-    flex-direction:column; gap:5px; }
+    flex-direction:column; gap:3px; }
   .btd-monkey:hover .btd-drop { display:flex; }
   /* The park scene sits inside a chunky wooden frame, sized to the canvas. */
   .btd-frame { width:fit-content; max-width:100%; padding:10px;
@@ -790,7 +798,10 @@ for (const type of MONKEY_TYPES) {
   row.addEventListener("click", (e) => {
     if ((e.target as HTMLElement).closest(".btd-drop")) return;
     const cost = monkeyCost(type);
-    if (pops < cost) return;
+    if (pops < cost) {
+      flashHint(hire, `need $${cost - Math.floor(pops)} more`);
+      return;
+    }
     pops -= cost;
     owned.set(type, (owned.get(type) ?? 0) + 1);
     playBuy();
@@ -871,14 +882,21 @@ function refreshHud(force = false): void {
 
   for (const [i, [type, card]] of [...typeCards].entries()) {
     const boost = typeMultiplier(type);
+    const hireHint = flashHints.get(card.hire);
+    const hireFlashing = hireHint !== undefined &&
+      performance.now() < hireHint.until;
     card.hire.innerHTML =
       `<span class="btd-dot" style="background:${type.color}"></span>` +
       `<span class="btd-name">${type.name} <span style="opacity:.8">×${
         counts[i]
       }</span></span>` +
       `<span class="btd-rate">+${type.popsPerSecond * boost}/s</span>` +
-      `<span class="btd-cost">$${costs[i]}</span>`;
-    card.hire.disabled = pops < costs[i];
+      `<span class="btd-cost">${
+        hireFlashing ? hireHint.message : `$${costs[i]}`
+      }</span>`;
+    // Never disabled: a click on a row you can't afford shakes and flashes
+    // the shortfall instead of being silently swallowed.
+    card.hire.classList.toggle("btd-broke", pops < costs[i]);
 
     for (const [j, up] of type.upgrades.entries()) {
       const button = card.upgrades[j];
