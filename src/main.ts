@@ -616,7 +616,9 @@ const background: HTMLCanvasElement = (() => {
 // ---------------------------------------------------------------------------
 const style = document.createElement("style");
 style.textContent = `
-  #btd-wrap { font-family: system-ui, sans-serif; }
+  #btd-wrap { display:flex; gap:14px; align-items:flex-start;
+    font-family: system-ui, sans-serif; }
+  #btd-left { flex:1; min-width:0; }
   #btd-hud { display:flex; gap:10px; flex-wrap:wrap; align-items:center;
     margin-bottom:10px; }
   .btd-stat { background:#243a24; color:#e6f4d8; padding:7px 14px;
@@ -625,25 +627,47 @@ style.textContent = `
   #btd-hud button { font-family:inherit; padding:7px 12px; border-radius:9px;
     border:1px solid #3a4a38; cursor:pointer; color:#fff;
     background:linear-gradient(#5d6b52,#46523e); }
-  #btd-shop { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+  #btd-shop { width:320px; flex-shrink:0; display:flex; flex-direction:column;
+    gap:4px; font-family:system-ui, sans-serif; }
+  #btd-shop h2 { margin:0 0 6px; font-size:16px; color:#e6f4d8; }
   #btd-shop button { font-family:inherit; text-align:left; font-weight:600;
-    padding:9px 14px; border:1px solid #3a4a38; border-radius:10px; cursor:pointer;
-    color:#fff; background:linear-gradient(#5d6b52,#46523e); transition:filter .1s; }
+    border:1px solid #3a4a38; border-radius:9px; cursor:pointer;
+    color:#fff; transition:filter .1s; }
   #btd-shop button:hover:not(:disabled) { filter:brightness(1.18); }
   #btd-shop button:disabled { opacity:.5; cursor:not-allowed; }
   #btd-shop button small { display:block; font-weight:400; opacity:.85; }
   #btd-shop .btd-up { padding:5px 10px; font-size:13px;
     background:linear-gradient(#3e5f3a,#2e4a2c); }
-  .btd-card { display:flex; flex-direction:column; gap:4px; }
-  .btd-card h3 { margin:8px 0 2px; font-size:14px; color:#c8e6c9; }
+  .btd-monkey { position:relative; }
+  .btd-monkey:hover { z-index:40; }
+  .btd-hire { display:flex; align-items:center; gap:8px; width:100%;
+    padding:6px 10px; background:linear-gradient(#5d6b52,#46523e); }
+  .btd-hire .btd-dot { width:10px; height:10px; border-radius:50%;
+    flex-shrink:0; }
+  .btd-hire .btd-name { flex:1; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; }
+  .btd-hire .btd-rate { font-size:12px; opacity:.9; }
+  .btd-hire .btd-cost { color:#ffd76a; }
+  .btd-drop { display:none; position:absolute; top:calc(100% + 2px); left:0;
+    right:0; z-index:41; background:#2c3a2a; border:1px solid #3a4a38;
+    border-radius:9px; padding:6px; box-shadow:0 8px 22px rgba(0,0,0,.5);
+    flex-direction:column; gap:4px; }
+  .btd-monkey:hover .btd-drop { display:flex; }
   #btd-canvas { width:100%; max-width:${W}px; border-radius:12px;
     box-shadow:0 5px 20px rgba(0,0,0,.4); display:block;
     background:#222; }
+  @media (max-width: 760px) {
+    #btd-wrap { flex-direction:column; }
+    #btd-shop { width:100%; }
+  }
 `;
 document.head.append(style);
 
 const wrap = document.createElement("div");
 wrap.id = "btd-wrap";
+
+const left = document.createElement("div");
+left.id = "btd-left";
 
 const hud = document.createElement("div");
 hud.id = "btd-hud";
@@ -674,21 +698,20 @@ shopHeading.textContent = "Hire monkeys";
 shopHeading.style.margin = "0";
 
 interface TypeCard {
-  buy: HTMLButtonElement;
+  hire: HTMLButtonElement;
   upgrades: HTMLButtonElement[];
 }
 
 const typeCards = new Map<MonkeyType, TypeCard>();
 for (const type of MONKEY_TYPES) {
-  const block = document.createElement("div");
-  block.className = "btd-card";
+  // Condensed row: click to hire; hover reveals the upgrade dropdown.
+  const row = document.createElement("div");
+  row.className = "btd-monkey";
 
-  const heading = document.createElement("h3");
-  heading.textContent = type.name;
-
-  const buy = document.createElement("button");
-  buy.title = type.description;
-  buy.addEventListener("click", () => {
+  const hire = document.createElement("button");
+  hire.className = "btd-hire";
+  hire.title = type.description;
+  hire.addEventListener("click", () => {
     const cost = monkeyCost(type);
     if (pops < cost) return;
     pops -= cost;
@@ -713,9 +736,12 @@ for (const type of MONKEY_TYPES) {
     return button;
   });
 
-  block.append(heading, buy, ...upgrades);
-  typeCards.set(type, { buy, upgrades });
-  shop.append(block);
+  const drop = document.createElement("div");
+  drop.className = "btd-drop";
+  drop.append(...upgrades);
+  row.append(hire, drop);
+  typeCards.set(type, { hire, upgrades });
+  shop.append(row);
 }
 
 shop.prepend(shopHeading);
@@ -745,23 +771,26 @@ function refreshHud(force = false): void {
 
   for (const [i, [type, card]] of [...typeCards].entries()) {
     const boost = typeMultiplier(type);
-    card.buy.innerHTML =
-      `Hire — $${costs[i]} <span style="opacity:.8">×${counts[i]}</span>` +
-      `<small>+${
-        type.popsPerSecond * boost
-      } pops/sec · ${type.description}</small>`;
-    card.buy.disabled = pops < costs[i];
+    card.hire.innerHTML =
+      `<span class="btd-dot" style="background:${type.color}"></span>` +
+      `<span class="btd-name">${type.name} <span style="opacity:.8">×${
+        counts[i]
+      }</span></span>` +
+      `<span class="btd-rate">+${type.popsPerSecond * boost}/s</span>` +
+      `<span class="btd-cost">$${costs[i]}</span>`;
+    card.hire.disabled = pops < costs[i];
 
     for (const [j, up] of type.upgrades.entries()) {
       const button = card.upgrades[j];
       if (purchasedUpgrades.has(up.name)) {
-        button.innerHTML = `✓ ${up.name}<small>${up.description}</small>`;
+        button.innerHTML = `✓ ${up.name} <span class="btd-cost">owned</span>`;
         button.disabled = true;
         continue;
       }
+      button.title = `${up.description} · needs ${up.requiredOwned} owned`;
       button.innerHTML =
-        `${up.name} — $${up.cost} <span style="opacity:.8">×${up.multiplier}</span>` +
-        `<small>${up.description} · needs ${up.requiredOwned} owned</small>`;
+        `${up.name} <span style="opacity:.75">×${up.multiplier}</span>` +
+        `<span class="btd-cost">$${up.cost}</span>`;
       button.disabled = pops < up.cost || counts[i] < up.requiredOwned;
     }
   }
@@ -990,7 +1019,8 @@ globalThis.addEventListener("keydown", (e) => {
 });
 
 canvasHolder.append(canvas);
-wrap.append(hud, canvasHolder, shop);
+left.append(hud, canvasHolder);
+wrap.append(left, shop);
 app.append(wrap);
 refreshHud(true);
 requestAnimationFrame(frame);
