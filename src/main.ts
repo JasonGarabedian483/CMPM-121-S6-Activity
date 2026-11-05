@@ -690,6 +690,16 @@ style.textContent = `
     background: var(--crate-nails),
       linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.35)),
       var(--crate-planks), var(--crate-face); }
+  /* Locked upgrades stay clickable so they can explain themselves. */
+  #btd-shop .btd-up.btd-locked { cursor:not-allowed; opacity:.65; }
+  @keyframes btd-shake {
+    0%, 100% { transform:translateX(0); }
+    20% { transform:translateX(-4px); }
+    40% { transform:translateX(4px); }
+    60% { transform:translateX(-3px); }
+    80% { transform:translateX(3px); }
+  }
+  .btd-shake { animation:btd-shake .3s ease; }
   .btd-monkey { position:relative; cursor:pointer; }
   .btd-monkey:hover { z-index:40; }
   .btd-hire { display:flex; align-items:center; gap:8px; width:100%;
@@ -793,8 +803,14 @@ for (const type of MONKEY_TYPES) {
     button.title = up.description;
     button.addEventListener("click", () => {
       if (purchasedUpgrades.has(up.name)) return;
-      if ((owned.get(type) ?? 0) < up.requiredOwned) return;
-      if (pops < up.cost) return;
+      if ((owned.get(type) ?? 0) < up.requiredOwned) {
+        flashHint(button, `🔒 needs ${up.requiredOwned} owned`);
+        return;
+      }
+      if (pops < up.cost) {
+        flashHint(button, `need $${up.cost - Math.floor(pops)} more`);
+        return;
+      }
       pops -= up.cost;
       purchasedUpgrades.add(up.name);
       playUpgrade();
@@ -819,6 +835,23 @@ function totalPopsPerSecond(): number {
     total += type.popsPerSecond * typeMultiplier(type) * count;
   }
   return total;
+}
+
+// Rejected purchases shake the button and flash the reason on it for a
+// moment. The hint lives in a WeakMap so refreshHud can keep rendering it
+// even though it rebuilds the button's markup.
+const flashHints = new WeakMap<
+  HTMLButtonElement,
+  { message: string; until: number }
+>();
+
+function flashHint(button: HTMLButtonElement, message: string): void {
+  flashHints.set(button, { message, until: performance.now() + 900 });
+  button.classList.remove("btd-shake");
+  void button.offsetWidth; // restart the shake animation
+  button.classList.add("btd-shake");
+  refreshHud(true);
+  setTimeout(() => refreshHud(true), 950);
 }
 
 let hudCache = "";
@@ -852,13 +885,23 @@ function refreshHud(force = false): void {
       if (purchasedUpgrades.has(up.name)) {
         button.innerHTML = `✓ ${up.name} <span class="btd-cost">owned</span>`;
         button.disabled = true;
+        button.classList.remove("btd-locked");
         continue;
       }
+      const locked = counts[i] < up.requiredOwned;
+      const hint = flashHints.get(button);
+      const flashing = hint !== undefined && performance.now() < hint.until;
       button.title = `${up.description} · needs ${up.requiredOwned} owned`;
+      const rightLabel = flashing
+        ? hint.message
+        : locked
+        ? `🔒 needs ${up.requiredOwned}`
+        : `$${up.cost}`;
       button.innerHTML =
         `${up.name} <span style="opacity:.75">×${up.multiplier}</span>` +
-        `<span class="btd-cost">$${up.cost}</span>`;
-      button.disabled = pops < up.cost || counts[i] < up.requiredOwned;
+        `<span class="btd-cost">${rightLabel}</span>`;
+      button.disabled = false;
+      button.classList.toggle("btd-locked", locked);
     }
   }
 }
