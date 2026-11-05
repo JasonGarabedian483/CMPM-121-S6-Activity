@@ -1,5 +1,6 @@
 // Bloons Clicker — an incremental popper in the Cookie Clicker style.
-// Click the big bloon to pop it; buy monkeys that pop bloons automatically.
+// Click the big bloon to pop it; hire monkeys that pop bloons automatically.
+// Each monkey type has tiered upgrades that multiply its pop rate.
 
 const app = document.querySelector<HTMLElement>("#app")!;
 
@@ -13,8 +14,17 @@ const BLOON_X = W * 0.3;
 const BLOON_Y = H * 0.55;
 
 // ---------------------------------------------------------------------------
-// Monkeys — data-driven: adding one means adding one entry, nothing else
+// Monkeys — data-driven: adding one means adding one entry, nothing else.
+// Upgrades multiply a type's output and unlock at owned counts.
 // ---------------------------------------------------------------------------
+interface MonkeyUpgrade {
+  name: string;
+  description: string;
+  cost: number;
+  multiplier: number; // multiplies this type's pops per second
+  requiredOwned: number; // monkeys of this type that must be owned first
+}
+
 interface MonkeyType {
   name: string;
   description: string;
@@ -22,6 +32,7 @@ interface MonkeyType {
   popsPerSecond: number;
   costScale: number;
   color: string;
+  upgrades: MonkeyUpgrade[];
 }
 
 const MONKEY_TYPES: MonkeyType[] = [
@@ -32,6 +43,29 @@ const MONKEY_TYPES: MonkeyType[] = [
     popsPerSecond: 1,
     costScale: 1.15,
     color: "#8d6e63",
+    upgrades: [
+      {
+        name: "Sharp Shots",
+        description: "Sharper darts.",
+        cost: 100,
+        multiplier: 2,
+        requiredOwned: 1,
+      },
+      {
+        name: "Razor Sharp Shots",
+        description: "Razor-tipped darts.",
+        cost: 750,
+        multiplier: 2,
+        requiredOwned: 5,
+      },
+      {
+        name: "Triple Darts",
+        description: "Three darts per throw.",
+        cost: 5000,
+        multiplier: 3,
+        requiredOwned: 15,
+      },
+    ],
   },
   {
     name: "Tack Shooter",
@@ -40,6 +74,29 @@ const MONKEY_TYPES: MonkeyType[] = [
     popsPerSecond: 4,
     costScale: 1.15,
     color: "#5d4037",
+    upgrades: [
+      {
+        name: "Faster Shooting",
+        description: "Shoots tacks quicker.",
+        cost: 600,
+        multiplier: 2,
+        requiredOwned: 1,
+      },
+      {
+        name: "Even Faster Shooting",
+        description: "Barely time to blink.",
+        cost: 4000,
+        multiplier: 2,
+        requiredOwned: 8,
+      },
+      {
+        name: "Tack Sprayer",
+        description: "A ring of tacks at once.",
+        cost: 25000,
+        multiplier: 3,
+        requiredOwned: 20,
+      },
+    ],
   },
   {
     name: "Sniper Monkey",
@@ -48,6 +105,29 @@ const MONKEY_TYPES: MonkeyType[] = [
     popsPerSecond: 12,
     costScale: 1.15,
     color: "#33691e",
+    upgrades: [
+      {
+        name: "Full Metal Jacket",
+        description: "Harder-hitting rounds.",
+        cost: 3500,
+        multiplier: 2,
+        requiredOwned: 1,
+      },
+      {
+        name: "Large Calibre",
+        description: "Bigger gun, bigger pops.",
+        cost: 22000,
+        multiplier: 2,
+        requiredOwned: 8,
+      },
+      {
+        name: "Semi-Automatic",
+        description: "Much faster fire rate.",
+        cost: 140000,
+        multiplier: 3,
+        requiredOwned: 18,
+      },
+    ],
   },
   {
     name: "Super Monkey",
@@ -56,6 +136,153 @@ const MONKEY_TYPES: MonkeyType[] = [
     popsPerSecond: 40,
     costScale: 1.15,
     color: "#1565c0",
+    upgrades: [
+      {
+        name: "Laser Blasts",
+        description: "Beams instead of darts.",
+        cost: 20000,
+        multiplier: 2,
+        requiredOwned: 1,
+      },
+      {
+        name: "Plasma Blasts",
+        description: "Superheated plasma.",
+        cost: 130000,
+        multiplier: 3,
+        requiredOwned: 6,
+      },
+      {
+        name: "Sun God",
+        description: "Becomes the sun itself.",
+        cost: 900000,
+        multiplier: 4,
+        requiredOwned: 15,
+      },
+    ],
+  },
+  {
+    name: "Bomb Tower",
+    description: "BOOM. Area pops on impact.",
+    baseCost: 20000,
+    popsPerSecond: 150,
+    costScale: 1.15,
+    color: "#546e7a",
+    upgrades: [
+      {
+        name: "Bigger Bombs",
+        description: "Larger blast radius.",
+        cost: 120000,
+        multiplier: 2,
+        requiredOwned: 1,
+      },
+      {
+        name: "Missile Launcher",
+        description: "Seeking missiles.",
+        cost: 800000,
+        multiplier: 2,
+        requiredOwned: 8,
+      },
+      {
+        name: "Bloon Annihilation",
+        description: "Removes bloons from reality.",
+        cost: 6000000,
+        multiplier: 3,
+        requiredOwned: 18,
+      },
+    ],
+  },
+  {
+    name: "Ice Monkey",
+    description: "Chills bloons until they burst.",
+    baseCost: 120000,
+    popsPerSecond: 600,
+    costScale: 1.15,
+    color: "#00bcd4",
+    upgrades: [
+      {
+        name: "Arctic Cold",
+        description: "Deeper freeze.",
+        cost: 700000,
+        multiplier: 2,
+        requiredOwned: 1,
+      },
+      {
+        name: "Snap Freeze",
+        description: "Sudden freezing bursts.",
+        cost: 4500000,
+        multiplier: 3,
+        requiredOwned: 6,
+      },
+      {
+        name: "Absolute Zero",
+        description: "Winter obeys you.",
+        cost: 30000000,
+        multiplier: 4,
+        requiredOwned: 14,
+      },
+    ],
+  },
+  {
+    name: "Monkey Village",
+    description: "Every monkey pops harder nearby.",
+    baseCost: 750000,
+    popsPerSecond: 2600,
+    costScale: 1.15,
+    color: "#827717",
+    upgrades: [
+      {
+        name: "Radar Scanner",
+        description: "Sees everything coming.",
+        cost: 4500000,
+        multiplier: 2,
+        requiredOwned: 1,
+      },
+      {
+        name: "Jungle Drums",
+        description: "Rhythmic motivation.",
+        cost: 28000000,
+        multiplier: 2,
+        requiredOwned: 6,
+      },
+      {
+        name: "Intelligence Bureau",
+        description: "Grants obscure benefits.",
+        cost: 190000000,
+        multiplier: 3,
+        requiredOwned: 12,
+      },
+    ],
+  },
+  {
+    name: "Banana Farm",
+    description: "Grows the economy of pops.",
+    baseCost: 5000000,
+    popsPerSecond: 12000,
+    costScale: 1.15,
+    color: "#c0ca33",
+    upgrades: [
+      {
+        name: "Increased Production",
+        description: "More bananas per tree.",
+        cost: 30000000,
+        multiplier: 2,
+        requiredOwned: 1,
+      },
+      {
+        name: "Banana Plantation",
+        description: "Fields of bananas.",
+        cost: 180000000,
+        multiplier: 2,
+        requiredOwned: 5,
+      },
+      {
+        name: "Banana Research",
+        description: "Bananas, but scientifically.",
+        cost: 1200000000,
+        multiplier: 3,
+        requiredOwned: 12,
+      },
+    ],
   },
 ];
 
@@ -64,6 +291,15 @@ function monkeyCost(type: MonkeyType): number {
   return Math.round(
     type.baseCost * Math.pow(type.costScale, owned.get(type) ?? 0),
   );
+}
+
+// Product of the multipliers of this type's purchased upgrades.
+function typeMultiplier(type: MonkeyType): number {
+  let multiplier = 1;
+  for (const up of type.upgrades) {
+    if (purchasedUpgrades.has(up.name)) multiplier *= up.multiplier;
+  }
+  return multiplier;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,6 +316,7 @@ let autoAccrual = 0; // fractional pops produced by monkeys, credited as they fi
 let squish = 0; // seconds remaining of the big bloon's squish animation
 let time = 0;
 const owned = new Map<MonkeyType, number>();
+const purchasedUpgrades = new Set<string>();
 const particles: Particle[] = [];
 const floaters: { bloon: MiniBloon; born: number }[] = [];
 const mouse = { x: -100, y: -100 };
@@ -104,6 +341,91 @@ interface MiniBloon {
   drift: number;
   popAt: number; // seconds until it pops
   born: number;
+}
+
+// ---------------------------------------------------------------------------
+// Audio — tiny synthesized sounds, no audio files needed. The AudioContext
+// is created lazily on the first user gesture, as browsers require.
+// ---------------------------------------------------------------------------
+let audioCtx: AudioContext | null = null;
+let muted = false;
+
+function ensureAudio(): AudioContext | null {
+  if (muted) return null;
+  if (!audioCtx) audioCtx = new AudioContext();
+  if (audioCtx.state === "suspended") void audioCtx.resume();
+  return audioCtx;
+}
+
+function tone(
+  ctx: AudioContext,
+  freq: number,
+  start: number,
+  dur: number,
+  vol: number,
+): void {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(freq, start);
+  gain.gain.setValueAtTime(vol, start);
+  gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(start);
+  osc.stop(start + dur);
+}
+
+// A bloon pop: a pitch-drop blip plus a short noise snap.
+function playPop(): void {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(500 + Math.random() * 250, now);
+  osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+  gain.gain.setValueAtTime(0.22, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.15);
+
+  const snapLen = 0.05;
+  const noise = ctx.createBufferSource();
+  const buffer = ctx.createBuffer(
+    1,
+    Math.ceil(ctx.sampleRate * snapLen),
+    ctx.sampleRate,
+  );
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i += 1) {
+    data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  }
+  noise.buffer = buffer;
+  const noiseGain = ctx.createGain();
+  noiseGain.gain.setValueAtTime(0.12, now);
+  noise.connect(noiseGain).connect(ctx.destination);
+  noise.start(now);
+}
+
+// Purchase jingles: two notes for hiring, three for upgrading.
+function playBuy(): void {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  tone(ctx, 523, now, 0.09, 0.15);
+  tone(ctx, 784, now + 0.09, 0.12, 0.15);
+}
+
+function playUpgrade(): void {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  tone(ctx, 523, now, 0.08, 0.14);
+  tone(ctx, 659, now + 0.08, 0.08, 0.14);
+  tone(ctx, 784, now + 0.16, 0.14, 0.14);
 }
 
 // ---------------------------------------------------------------------------
@@ -274,7 +596,7 @@ const background: HTMLCanvasElement = (() => {
     puff(9, -6, 10, "#2e7d32");
     puff(0, -14, 12, "#388e3c");
     puff(-4, -2, 8, "#43a047");
-    puff(5, -4, 7, "#4caf50");
+    puff(5, -4, 8, "#4caf50");
   };
   tree(90, H * 0.66, 1.15);
   tree(250, H * 0.7, 0.9);
@@ -300,6 +622,9 @@ style.textContent = `
   .btd-stat { background:#243a24; color:#e6f4d8; padding:7px 14px;
     border-radius:9px; font-weight:600; box-shadow:0 2px 4px rgba(0,0,0,.35); }
   .btd-stat b { color:#ffd76a; }
+  #btd-hud button { font-family:inherit; padding:7px 12px; border-radius:9px;
+    border:1px solid #3a4a38; cursor:pointer; color:#fff;
+    background:linear-gradient(#5d6b52,#46523e); }
   #btd-shop { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
   #btd-shop button { font-family:inherit; text-align:left; font-weight:600;
     padding:9px 14px; border:1px solid #3a4a38; border-radius:10px; cursor:pointer;
@@ -307,6 +632,10 @@ style.textContent = `
   #btd-shop button:hover:not(:disabled) { filter:brightness(1.18); }
   #btd-shop button:disabled { opacity:.5; cursor:not-allowed; }
   #btd-shop button small { display:block; font-weight:400; opacity:.85; }
+  #btd-shop .btd-up { padding:5px 10px; font-size:13px;
+    background:linear-gradient(#3e5f3a,#2e4a2c); }
+  .btd-card { display:flex; flex-direction:column; gap:4px; }
+  .btd-card h3 { margin:8px 0 2px; font-size:14px; color:#c8e6c9; }
   #btd-canvas { width:100%; max-width:${W}px; border-radius:12px;
     box-shadow:0 5px 20px rgba(0,0,0,.4); display:block;
     background:#222; }
@@ -327,7 +656,13 @@ const statClick = document.createElement("span");
 statClick.className = "btd-stat";
 statClick.innerHTML = `Per click <b>+1 pop</b>`;
 
-hud.append(statPops, statPps, statClick);
+const muteButton = document.createElement("button");
+muteButton.addEventListener("click", () => {
+  muted = !muted;
+  refreshHud(true);
+});
+
+hud.append(statPops, statPps, statClick, muteButton);
 
 const canvasHolder = document.createElement("div");
 
@@ -338,25 +673,58 @@ const shopHeading = document.createElement("h2");
 shopHeading.textContent = "Hire monkeys";
 shopHeading.style.margin = "0";
 
-const shopButtons = new Map<MonkeyType, HTMLButtonElement>();
+interface TypeCard {
+  buy: HTMLButtonElement;
+  upgrades: HTMLButtonElement[];
+}
+
+const typeCards = new Map<MonkeyType, TypeCard>();
 for (const type of MONKEY_TYPES) {
-  const button = document.createElement("button");
-  button.title = type.description;
-  button.addEventListener("click", () => {
+  const block = document.createElement("div");
+  block.className = "btd-card";
+
+  const heading = document.createElement("h3");
+  heading.textContent = type.name;
+
+  const buy = document.createElement("button");
+  buy.title = type.description;
+  buy.addEventListener("click", () => {
     const cost = monkeyCost(type);
     if (pops < cost) return;
     pops -= cost;
     owned.set(type, (owned.get(type) ?? 0) + 1);
+    playBuy();
     refreshHud(true);
   });
-  shopButtons.set(type, button);
+
+  const upgrades = type.upgrades.map((up) => {
+    const button = document.createElement("button");
+    button.className = "btd-up";
+    button.title = up.description;
+    button.addEventListener("click", () => {
+      if (purchasedUpgrades.has(up.name)) return;
+      if ((owned.get(type) ?? 0) < up.requiredOwned) return;
+      if (pops < up.cost) return;
+      pops -= up.cost;
+      purchasedUpgrades.add(up.name);
+      playUpgrade();
+      refreshHud(true);
+    });
+    return button;
+  });
+
+  block.append(heading, buy, ...upgrades);
+  typeCards.set(type, { buy, upgrades });
+  shop.append(block);
 }
 
-shop.append(shopHeading, ...shopButtons.values());
+shop.prepend(shopHeading);
 
 function totalPopsPerSecond(): number {
   let total = 0;
-  for (const [type, count] of owned) total += type.popsPerSecond * count;
+  for (const [type, count] of owned) {
+    total += type.popsPerSecond * typeMultiplier(type) * count;
+  }
   return total;
 }
 
@@ -367,18 +735,35 @@ function refreshHud(force = false): void {
   const counts = MONKEY_TYPES.map((type) => owned.get(type) ?? 0);
   const key = `${Math.floor(pops)}|${pps}|${costs.join(",")}|${
     counts.join(",")
-  }`;
+  }|${purchasedUpgrades.size}|${muted}`;
   if (!force && key === hudCache) return;
   hudCache = key;
+
   statPops.innerHTML = `Pops <b>${Math.floor(pops)}</b>`;
   statPps.innerHTML = `Per second <b>${pps.toFixed(1)}</b>`;
-  for (const [i, [type, button]] of [...shopButtons].entries()) {
-    button.innerHTML =
-      `${type.name} — $${costs[i]} <span style="opacity:.8">×${
-        counts[i]
-      }</span>` +
-      `<small>+${type.popsPerSecond} pops/sec · ${type.description}</small>`;
-    button.disabled = pops < costs[i];
+  muteButton.textContent = muted ? "🔇 Sound off" : "🔊 Sound on";
+
+  for (const [i, [type, card]] of [...typeCards].entries()) {
+    const boost = typeMultiplier(type);
+    card.buy.innerHTML =
+      `Hire — $${costs[i]} <span style="opacity:.8">×${counts[i]}</span>` +
+      `<small>+${
+        type.popsPerSecond * boost
+      } pops/sec · ${type.description}</small>`;
+    card.buy.disabled = pops < costs[i];
+
+    for (const [j, up] of type.upgrades.entries()) {
+      const button = card.upgrades[j];
+      if (purchasedUpgrades.has(up.name)) {
+        button.innerHTML = `✓ ${up.name}<small>${up.description}</small>`;
+        button.disabled = true;
+        continue;
+      }
+      button.innerHTML =
+        `${up.name} — $${up.cost} <span style="opacity:.8">×${up.multiplier}</span>` +
+        `<small>${up.description} · needs ${up.requiredOwned} owned</small>`;
+      button.disabled = pops < up.cost || counts[i] < up.requiredOwned;
+    }
   }
 }
 
@@ -417,6 +802,7 @@ function burst(x: number, y: number, hi: string, mid: string): void {
 function manualPop(): void {
   pops += 1;
   squish = 0.18;
+  playPop();
   burst(BLOON_X, BLOON_Y, "#ff8a80", "#ef5350");
   refreshHud(true);
 }
@@ -459,8 +845,6 @@ function update(dt: number): void {
     b.x += Math.sin(time * 2 + b.drift) * 12 * dt;
     const age = time - entry.born;
     if (age >= b.popAt) {
-      const sprite = miniBloonSprites[i % miniBloonSprites.length];
-      // Sample the sprite's average hue by reusing its palette order.
       const palettes: [string, string][] = [
         ["#ff8a80", "#ef5350"],
         ["#82b1ff", "#42a5f5"],
@@ -470,7 +854,6 @@ function update(dt: number): void {
       const [hi, mid] = palettes[i % palettes.length];
       burst(b.x, b.y, hi, mid);
       floaters.splice(i, 1);
-      void sprite;
     }
   }
 
