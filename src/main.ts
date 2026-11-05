@@ -616,46 +616,107 @@ const background: HTMLCanvasElement = (() => {
 // ---------------------------------------------------------------------------
 const style = document.createElement("style");
 style.textContent = `
+  /* Deep-jungle page backdrop: soft sun glow, foliage texture, vignette. */
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: #eef4e2;
+    background:
+      radial-gradient(1000px 460px at 15% -6%, rgba(255,240,170,.12), transparent 62%),
+      radial-gradient(900px 420px at 86% 4%, rgba(140,255,160,.07), transparent 60%),
+      radial-gradient(1400px 700px at 50% 118%, rgba(0,0,0,.55), transparent 70%),
+      repeating-linear-gradient(115deg, rgba(0,0,0,.14) 0 26px, rgba(255,255,255,.03) 26px 52px),
+      linear-gradient(180deg, #2a4a20, #1a2f13 55%, #101c0a);
+    background-attachment: fixed;
+  }
+  #app { max-width: 1400px; margin: 0 auto; padding: 14px; }
+
+  /* Wood pieces shared by every crate: corner nails, plank gaps, face grain. */
+  :root {
+    --crate-nails:
+      radial-gradient(circle at 9px 9px, #3a2210 2.2px, transparent 3.2px),
+      radial-gradient(circle at calc(100% - 9px) 9px, #3a2210 2.2px, transparent 3.2px),
+      radial-gradient(circle at 9px calc(100% - 9px), #3a2210 2.2px, transparent 3.2px),
+      radial-gradient(circle at calc(100% - 9px) calc(100% - 9px), #3a2210 2.2px, transparent 3.2px);
+    --crate-planks:
+      repeating-linear-gradient(90deg, rgba(0,0,0,.22) 0 2px, rgba(255,255,255,.06) 2px 3px, transparent 3px 24px);
+    --crate-face: linear-gradient(180deg, #bb8b53, #96683a 48%, #7a5230);
+  }
+
   #btd-wrap { display:flex; gap:14px; align-items:flex-start;
     font-family: system-ui, sans-serif; }
   #btd-left { flex:1; min-width:0; }
   #btd-hud { display:flex; gap:10px; flex-wrap:wrap; align-items:center;
     margin-bottom:10px; }
-  .btd-stat { background:#243a24; color:#e6f4d8; padding:7px 14px;
-    border-radius:9px; font-weight:600; box-shadow:0 2px 4px rgba(0,0,0,.35); }
+
+  /* Wooden-crate look for every button and stat chip. */
+  .btd-stat, #btd-hud button, #btd-shop button {
+    border: 2px solid #4a2e14; border-radius: 8px;
+    color: #fff; font-weight: 600;
+    text-shadow: 0 1px 1px rgba(0,0,0,.45);
+    background: var(--crate-nails), var(--crate-planks), var(--crate-face);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.28),
+      inset 0 -3px 0 rgba(0,0,0,.30),
+      0 3px 0 #3a2410,
+      0 6px 10px rgba(0,0,0,.35);
+    transition: filter .1s, transform .05s;
+  }
+  .btd-stat { padding:6px 14px; font-weight:700;
+    background: var(--crate-planks), linear-gradient(180deg, #7a5230, #5f3d1e); }
   .btd-stat b { color:#ffd76a; }
-  #btd-hud button { font-family:inherit; padding:7px 12px; border-radius:9px;
-    border:1px solid #3a4a38; cursor:pointer; color:#fff;
-    background:linear-gradient(#5d6b52,#46523e); }
+  #btd-hud button { font-family:inherit; padding:7px 12px; }
+  #btd-hud button:hover:not(:disabled), #btd-shop button:hover:not(:disabled) {
+    filter: brightness(1.14); }
+  #btd-hud button:active:not(:disabled), #btd-shop button:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 2px 0 rgba(255,255,255,.28),
+      inset 0 -3px 0 rgba(0,0,0,.30),
+      0 1px 0 #3a2410,
+      0 3px 6px rgba(0,0,0,.3); }
+
   #btd-shop { width:320px; flex-shrink:0; display:flex; flex-direction:column;
-    gap:4px; font-family:system-ui, sans-serif; }
-  #btd-shop h2 { margin:0 0 6px; font-size:16px; color:#e6f4d8; }
-  #btd-shop button { font-family:inherit; text-align:left; font-weight:600;
-    border:1px solid #3a4a38; border-radius:9px; cursor:pointer;
-    color:#fff; transition:filter .1s; }
-  #btd-shop button:hover:not(:disabled) { filter:brightness(1.18); }
-  #btd-shop button:disabled { opacity:.5; cursor:not-allowed; }
-  #btd-shop button small { display:block; font-weight:400; opacity:.85; }
-  #btd-shop .btd-up { padding:5px 10px; font-size:13px;
-    background:linear-gradient(#3e5f3a,#2e4a2c); }
+    gap:5px; font-family:system-ui, sans-serif; }
+  #btd-shop h2 { margin:0 0 6px; font-size:16px; color:#f5e9d0;
+    text-shadow:0 2px 4px rgba(0,0,0,.6); letter-spacing:.5px; }
+  #btd-shop button { font-family:inherit; text-align:left;
+    cursor:pointer; }
+  #btd-shop button:disabled { opacity:.55; cursor:not-allowed;
+    filter:saturate(.65) brightness(.85); }
+  #btd-shop .btd-up { padding:6px 10px; font-size:13px;
+    background: var(--crate-nails),
+      linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.35)),
+      var(--crate-planks), var(--crate-face); }
   .btd-monkey { position:relative; }
   .btd-monkey:hover { z-index:40; }
   .btd-hire { display:flex; align-items:center; gap:8px; width:100%;
-    padding:6px 10px; background:linear-gradient(#5d6b52,#46523e); }
+    padding:6px 10px; }
   .btd-hire .btd-dot { width:10px; height:10px; border-radius:50%;
-    flex-shrink:0; }
+    flex-shrink:0; box-shadow:0 0 0 2px rgba(0,0,0,.4); }
   .btd-hire .btd-name { flex:1; overflow:hidden; text-overflow:ellipsis;
     white-space:nowrap; }
   .btd-hire .btd-rate { font-size:12px; opacity:.9; }
   .btd-hire .btd-cost { color:#ffd76a; }
+  /* The dropdown reads as the open inside of a crate: darker planks. */
   .btd-drop { display:none; position:absolute; top:calc(100% + 2px); left:0;
-    right:0; z-index:41; background:#2c3a2a; border:1px solid #3a4a38;
-    border-radius:9px; padding:6px; box-shadow:0 8px 22px rgba(0,0,0,.5);
-    flex-direction:column; gap:4px; }
+    right:0; z-index:41;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 2px, transparent 2px 18px),
+      linear-gradient(180deg, #54381c, #3f2812);
+    border:2px solid #4a2e14; border-radius:8px; padding:8px;
+    box-shadow: inset 0 3px 10px rgba(0,0,0,.5), 0 10px 24px rgba(0,0,0,.5);
+    flex-direction:column; gap:5px; }
   .btd-monkey:hover .btd-drop { display:flex; }
-  #btd-canvas { width:100%; max-width:${W}px; border-radius:12px;
-    box-shadow:0 5px 20px rgba(0,0,0,.4); display:block;
-    background:#222; }
+  /* The park scene sits inside a chunky wooden frame, sized to the canvas. */
+  .btd-frame { width:fit-content; max-width:100%; padding:10px;
+    border-radius:14px;
+    background: var(--crate-nails), var(--crate-planks),
+      linear-gradient(180deg, #a9743f, #8a5a2e 50%, #6f4420);
+    border:2px solid #4a2e14;
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.25), 0 10px 26px rgba(0,0,0,.5); }
+  #btd-canvas { width:100%; max-width:${W}px; height:auto; border-radius:8px;
+    display:block; background:#222; }
   @media (max-width: 760px) {
     #btd-wrap { flex-direction:column; }
     #btd-shop { width:100%; }
@@ -689,6 +750,7 @@ muteButton.addEventListener("click", () => {
 hud.append(statPops, statPps, statClick, muteButton);
 
 const canvasHolder = document.createElement("div");
+canvasHolder.className = "btd-frame";
 
 const shop = document.createElement("div");
 shop.id = "btd-shop";
