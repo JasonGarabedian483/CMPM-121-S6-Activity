@@ -779,9 +779,18 @@ const shopHeading = document.createElement("h2");
 shopHeading.textContent = "Hire monkeys";
 shopHeading.style.margin = "0";
 
+interface UpgradeCard {
+  button: HTMLButtonElement;
+  nameEl: HTMLElement;
+  rightEl: HTMLElement;
+}
+
 interface TypeCard {
   hire: HTMLButtonElement;
-  upgrades: HTMLButtonElement[];
+  countEl: HTMLElement;
+  rateEl: HTMLElement;
+  costEl: HTMLElement;
+  upgrades: UpgradeCard[];
 }
 
 const typeCards = new Map<MonkeyType, TypeCard>();
@@ -793,6 +802,25 @@ for (const type of MONKEY_TYPES) {
   const hire = document.createElement("button");
   hire.className = "btd-hire";
   hire.title = type.description;
+  // Every child is built once and only ever updated in place afterwards.
+  // Replacing innerHTML between mousedown and mouseup detaches the node
+  // under the cursor, and the browser then never dispatches the click -
+  // the button visibly presses but the purchase silently doesn't happen.
+  const dotEl = document.createElement("span");
+  dotEl.className = "btd-dot";
+  dotEl.style.background = type.color;
+  const nameEl = document.createElement("span");
+  nameEl.className = "btd-name";
+  nameEl.textContent = `${type.name} `;
+  const countEl = document.createElement("span");
+  countEl.style.opacity = ".8";
+  const rateEl = document.createElement("span");
+  rateEl.className = "btd-rate";
+  const costEl = document.createElement("span");
+  costEl.className = "btd-cost";
+  nameEl.append(countEl);
+  hire.append(dotEl, nameEl, rateEl, costEl);
+
   // Hiring listens on the whole row, so presses that land on the crate's
   // shadowed edges or the dropdown gap still buy instead of vanishing.
   row.addEventListener("click", (e) => {
@@ -811,6 +839,13 @@ for (const type of MONKEY_TYPES) {
   const upgrades = type.upgrades.map((up) => {
     const button = document.createElement("button");
     button.className = "btd-up";
+    const upNameEl = document.createElement("span");
+    const multEl = document.createElement("span");
+    multEl.style.opacity = ".75";
+    multEl.textContent = `×${up.multiplier}`;
+    const rightEl = document.createElement("span");
+    rightEl.className = "btd-cost";
+    button.append(upNameEl, multEl, rightEl);
     button.title = up.description;
     button.addEventListener("click", () => {
       if (purchasedUpgrades.has(up.name)) return;
@@ -827,14 +862,20 @@ for (const type of MONKEY_TYPES) {
       playUpgrade();
       refreshHud(true);
     });
-    return button;
+    return { button, nameEl: upNameEl, rightEl };
   });
 
   const drop = document.createElement("div");
   drop.className = "btd-drop";
-  drop.append(...upgrades);
+  drop.append(...upgrades.map((up) => up.button));
   row.append(hire, drop);
-  typeCards.set(type, { hire, upgrades });
+  typeCards.set(type, {
+    hire,
+    countEl,
+    rateEl,
+    costEl,
+    upgrades,
+  });
   shop.append(row);
 }
 
@@ -865,6 +906,13 @@ function flashHint(button: HTMLButtonElement, message: string): void {
   setTimeout(() => refreshHud(true), 950);
 }
 
+// Only touch the DOM when text actually changes - even setting the same
+// string replaces the text node, and churning nodes under the cursor is
+// exactly what this refactor exists to avoid.
+function setText(el: HTMLElement, text: string): void {
+  if (el.textContent !== text) el.textContent = text;
+}
+
 let hudCache = "";
 function refreshHud(force = false): void {
   const pps = totalPopsPerSecond();
@@ -882,44 +930,40 @@ function refreshHud(force = false): void {
 
   for (const [i, [type, card]] of [...typeCards].entries()) {
     const boost = typeMultiplier(type);
+    setText(card.countEl, `×${counts[i]}`);
+    setText(card.rateEl, `+${type.popsPerSecond * boost}/s`);
     const hireHint = flashHints.get(card.hire);
-    const hireFlashing = hireHint !== undefined &&
-      performance.now() < hireHint.until;
-    card.hire.innerHTML =
-      `<span class="btd-dot" style="background:${type.color}"></span>` +
-      `<span class="btd-name">${type.name} <span style="opacity:.8">×${
-        counts[i]
-      }</span></span>` +
-      `<span class="btd-rate">+${type.popsPerSecond * boost}/s</span>` +
-      `<span class="btd-cost">${
-        hireFlashing ? hireHint.message : `$${costs[i]}`
-      }</span>`;
+    setText(
+      card.costEl,
+      hireHint !== undefined && performance.now() < hireHint.until
+        ? hireHint.message
+        : `$${costs[i]}`,
+    );
     // Never disabled: a click on a row you can't afford shakes and flashes
     // the shortfall instead of being silently swallowed.
     card.hire.classList.toggle("btd-broke", pops < costs[i]);
 
     for (const [j, up] of type.upgrades.entries()) {
-      const button = card.upgrades[j];
-      if (purchasedUpgrades.has(up.name)) {
-        button.innerHTML = `✓ ${up.name} <span class="btd-cost">owned</span>`;
-        button.disabled = true;
-        button.classList.remove("btd-locked");
-        continue;
-      }
+      const upgrade = card.upgrades[j];
+      const button = upgrade.button;
+      const purchased = purchasedUpgrades.has(up.name);
       const locked = counts[i] < up.requiredOwned;
       const hint = flashHints.get(button);
       const flashing = hint !== undefined && performance.now() < hint.until;
       button.title = `${up.description} · needs ${up.requiredOwned} owned`;
-      const rightLabel = flashing
-        ? hint.message
-        : locked
-        ? `🔒 needs ${up.requiredOwned}`
-        : `$${up.cost}`;
-      button.innerHTML =
-        `${up.name} <span style="opacity:.75">×${up.multiplier}</span>` +
-        `<span class="btd-cost">${rightLabel}</span>`;
-      button.disabled = false;
-      button.classList.toggle("btd-locked", locked);
+      button.disabled = purchased;
+      button.classList.toggle("btd-locked", !purchased && locked);
+      setText(upgrade.nameEl, purchased ? `✓ ${up.name} ` : `${up.name} `);
+      setText(
+        upgrade.rightEl,
+        purchased
+          ? "owned"
+          : flashing
+          ? hint.message
+          : locked
+          ? `🔒 needs ${up.requiredOwned}`
+          : `$${up.cost}`,
+      );
     }
   }
 }
