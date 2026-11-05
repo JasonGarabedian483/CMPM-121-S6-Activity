@@ -660,7 +660,7 @@ style.textContent = `
       inset 0 -3px 0 rgba(0,0,0,.30),
       0 3px 0 #3a2410,
       0 6px 10px rgba(0,0,0,.35);
-    transition: filter .1s, transform .05s;
+    transition: filter .1s;
   }
   .btd-stat { padding:6px 14px; font-weight:700;
     background: var(--crate-planks), linear-gradient(180deg, #7a5230, #5f3d1e); }
@@ -668,13 +668,15 @@ style.textContent = `
   #btd-hud button { font-family:inherit; padding:7px 12px; }
   #btd-hud button:hover:not(:disabled), #btd-shop button:hover:not(:disabled) {
     filter: brightness(1.14); }
+  /* Press sinks the crate in place: no transform, or edge clicks would
+     slide the button out from under the cursor and never fire. */
   #btd-hud button:active:not(:disabled), #btd-shop button:active:not(:disabled) {
-    transform: translateY(2px);
+    filter: brightness(.9);
     box-shadow:
-      inset 0 2px 0 rgba(255,255,255,.28),
-      inset 0 -3px 0 rgba(0,0,0,.30),
-      0 1px 0 #3a2410,
-      0 3px 6px rgba(0,0,0,.3); }
+      inset 0 3px 6px rgba(0,0,0,.4),
+      inset 0 -1px 0 rgba(255,255,255,.15),
+      0 3px 0 #3a2410,
+      0 5px 8px rgba(0,0,0,.35); }
 
   #btd-shop { width:320px; flex-shrink:0; display:flex; flex-direction:column;
     gap:5px; font-family:system-ui, sans-serif; }
@@ -688,7 +690,7 @@ style.textContent = `
     background: var(--crate-nails),
       linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.35)),
       var(--crate-planks), var(--crate-face); }
-  .btd-monkey { position:relative; }
+  .btd-monkey { position:relative; cursor:pointer; }
   .btd-monkey:hover { z-index:40; }
   .btd-hire { display:flex; align-items:center; gap:8px; width:100%;
     padding:6px 10px; }
@@ -700,7 +702,7 @@ style.textContent = `
   .btd-hire .btd-cost { color:#ffd76a; }
   /* The dropdown reads as the open inside of a crate: darker planks. */
   .btd-drop { display:none; position:absolute; top:calc(100% + 2px); left:0;
-    right:0; z-index:41;
+    right:0; z-index:41; cursor:default;
     background:
       repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 2px, transparent 2px 18px),
       linear-gradient(180deg, #54381c, #3f2812);
@@ -773,7 +775,10 @@ for (const type of MONKEY_TYPES) {
   const hire = document.createElement("button");
   hire.className = "btd-hire";
   hire.title = type.description;
-  hire.addEventListener("click", () => {
+  // Hiring listens on the whole row, so presses that land on the crate's
+  // shadowed edges or the dropdown gap still buy instead of vanishing.
+  row.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest(".btd-drop")) return;
     const cost = monkeyCost(type);
     if (pops < cost) return;
     pops -= cost;
